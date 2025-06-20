@@ -4,42 +4,47 @@ import cookieParser from "cookie-parser"
 import dotenv from "dotenv";
 import cors  from "cors";
 import connectDB from "./utils/db";
+import userRouter from "./routes/userRoute";
+import ErrorHandler from "./utils/ErrorHandler";
 const app= express();
 
 dotenv.config();
 
-const PORT=4001
-app.listen(()=>{
-    console.log(`Server is running on port ${process.env.PORT}`);
-    connectDB()
-});
+// api endpoints
 
 app.use(express.json({limit:"50kb"}));
-app.use(cookieParser()
-)
+
+app.use(express.urlencoded({extended:true,limit:"50kb"}));
+
+app.use(cookieParser());
 
 app.use(cors({
-    origin: process.env.ORIGIN
-}));
+    origin: process.env.ORIGIN || "http://localhost:3000",
+    credentials: true // if you're using cookies
+  }));
+  
+
+app.use("/api/v1",userRouter);
+
+const PORT = 8080
+app.listen(PORT, ()=>{
+    console.log(`Server is running on port ${PORT}`);
+    connectDB();
+});
 
 app.get("/test",(req:Request, res:Response, next: NextFunction)=>{
     res.status(200).json({
         success:true,
         message:"Server is running!",
-        
+       
     })
 });
 
-// app.all("*",(req:Request, res:Response, next: NextFunction)=>{
-//     const err= new Error(`Route ${req.originalUrl} not found`) as any;
-//     err.statusCode=404;
-//     next(err);
-// })
+app.get("/", (req: Request, res: Response) => {
+    res.status(200).json({
+        success: true,
+        message: "Welcome to the server!"
+    });
+});
 
-// // Error handling middleware
-// app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-//     res.status(err.statusCode || 500).json({
-//         success: false,
-//         message: err.message || "Internal Server Error",
-//     });
-// });
+// Catch-all for undefined routes
