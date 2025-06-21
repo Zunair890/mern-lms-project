@@ -20,6 +20,8 @@ export interface IUser extends Document{
     isVerified: boolean,
     courses: Array<(courseId: string)=> void>,
     comparePassword: (password:string)=> Promise<boolean>;
+    SignAccessToken:()=> string,
+    SignRefreshToken:()=> string
 };
 
 
@@ -73,6 +75,18 @@ userSchema.pre<IUser>("save", async function (next){
 
 userSchema.methods.comparePassword= async function (enterPassword: string): Promise<boolean>{
     return await bcrypt.compare(enterPassword,this.password)
+}
+
+// signin access token
+
+userSchema.methods.SignAccessToken= function(){
+    return jwt.sign({id: this._id},process.env.ACCESS_TOKEN )
+}
+
+// signin refresh token 
+
+userSchema.methods.SignRefreshToken= function(){
+    return jwt.sign({id: this._id},process.env.REFRESH_TOKEN )
 }
 
 
