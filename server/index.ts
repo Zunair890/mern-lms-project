@@ -6,9 +6,21 @@ import cors  from "cors";
 import connectDB from "./utils/db";
 import userRouter from "./routes/userRoute";
 import ErrorHandler from "./utils/ErrorHandler";
+import {v2 as cloudinary} from "cloudinary";
 const app= express();
 
 dotenv.config();
+
+// configure cloudinary
+
+cloudinary.config({
+
+    cloud_name: process.env.CLOUD_NAME,
+    api_key: process.env.CLOUD_API_KEY,
+    api_secret: process.env.CLOUD_SECRET_KEY
+})
+
+
 
 // api endpoints
 
