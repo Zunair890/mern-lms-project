@@ -1,4 +1,4 @@
-import { NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import ErrorHandler from "../utils/ErrorHandler";
 
 export const errorMiddleware= (
@@ -13,13 +13,13 @@ export const errorMiddleware= (
     // wrong mongodb id error
 
     if(err.name==="CastError"){
-        const message= `Resourse not found. Invalid ${err.path}`;
+        const message= `Resource not found. Invalid ${err.path}`;
         err= new ErrorHandler(message,400);
     }
 
     // duplicate key error
 
-    if(err.code=== 1100){
+    if(err.code=== 11000){
         const message= `Duplicate ${Object.keys(err.keyValue)} entered`;
         err= new ErrorHandler(message,400);
     }
@@ -39,5 +39,10 @@ export const errorMiddleware= (
         err= new ErrorHandler(message,400)
     }
 
-    
+    // Send error response
+    res.status(err.statusCode).json({
+        success: false,
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
 }
