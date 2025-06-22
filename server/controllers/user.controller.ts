@@ -1,13 +1,14 @@
-import {Request,Response,NextFunction} from "express";
+import e, {Request,Response,NextFunction} from "express";
 import userModel,{IUser} from "../models/user.models";
 import ErrorHandler from "../utils/ErrorHandler";
 import ejs from "ejs"
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { catchAsyncError } from "../utils/catchAsyncError";
 import path from "path";
 import sendMail from "../utils/sendMail";
-import { sendToken } from "../utils/jwt";
+import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt";
 import { redis } from "../utils/redis";
+import { getUserById } from "../services/user.services";
 
 interface IRegisterationBody{
     name: string,
@@ -145,3 +146,209 @@ export const logoutUser = catchAsyncError(async (req: Request, res: Response, ne
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
+// update access token
+
+export const updateAccessToken= catchAsyncError(async(req:Request,res: Response,next:NextFunction)=>{
+    try {
+        const refresh_token= req.cookies.refresh_token as string;
+        const decoded= jwt.verify(refresh_token,process.env.REFRESH_TOKEN as string) as JwtPayload;
+
+        const message= "Could not refresh the token!";
+        if(!decoded){
+            return next(new ErrorHandler(message,400));
+
+        }
+
+        const session= await redis.get(decoded.id as string);
+        if(!session){
+            return next(new ErrorHandler(message,400))
+        }
+        const user= JSON.parse(session);
+        const accessToken= jwt.sign({id: user._id},process.env.ACCESS_TOKEN as string,{
+            expiresIn:"5m"
+        });
+
+        const refreshToken= jwt.sign({id:user._id},process.env.REFRESH_TOKEN as string,{
+            expiresIn:"3d"
+        });
+
+        res.cookie("access_token",accessToken,accessTokenOptions);
+        res.cookie("refresh_token",refreshToken,refreshTokenOptions);
+
+        res.status(200).json({
+            status:"success",
+            accessToken
+        })
+    } catch (error) {
+        return next(new ErrorHandler("Could not refresh the token!", 400));
+    }
+})
+
+
+// get user info
+
+export const getUserInfo= catchAsyncError(async(req:Request,res:Response,next:NextFunction)=>{
+   try {
+    const userId= req.user?._id;
+    if (!userId) {
+        return next(new ErrorHandler("User not found", 400));
+    }
+    await getUserById(String(userId), res);
+   } catch (error) {
+    return next(new ErrorHandler(error.message, 400))
+   }
+});
+
+
+// social auth
+
+interface ISocialAuthBody{
+    name: string,
+    email:string,
+    avatar?:string
+}
+
+export const socialAuth= catchAsyncError(async(req:Request, res:Response,next:NextFunction)=>{
+    try {
+        const {name,email, avatar}= req.body as ISocialAuthBody;
+        const user= await userModel.findOne({email});
+        if(!user){
+            const newUser= await userModel.create({name,email,avatar});
+            sendToken(newUser,200,res);
+        }
+        else{
+            sendToken(user,200,res);
+        }
+    } catch (error) {
+     
+        return next(new ErrorHandler(error.message,400))
+    }
+})
+
+// update user info
+
+interface IUpdateUserInfo{
+    name?: string;
+    email?:string;
+}
+
+export const updateUserInfo= catchAsyncError(async(req:Request,res:Response,next:NextFunction)=>{
+    try {
+        if (!req.body) {
+            return next(new ErrorHandler("Request body is missing", 400));
+        }
+        const {name,email}= req.body as IUpdateUserInfo;
+        
+        // Debug logging to understand what's happening
+        
+        
+        // Check if req.user exists and has _id
+        if (!req.user || !req.user._id) {
+            return next(new ErrorHandler("User not authenticated or user data missing", 401));
+        }
+        
+        const userId = req.user._id;
+        console.log('userId:', userId);
+        
+        // Find user in database
+        const user = await userModel.findById(userId);
+        
+        // Check if user exists in database
+        if (!user) {
+            return next(new ErrorHandler("User not found in database", 404));
+        }
+
+        // Check if email already exists (only if email is being updated and it's different)
+        if(email && email !== user.email){
+            const isEmailExist = await userModel.findOne({email});
+            if(isEmailExist){
+                return next(new ErrorHandler("Email already exists", 400));
+            }
+            user.email = email;
+        }
+        
+        // Update name if provided
+        if(name){
+            user.name = name;
+        }
+
+        // Save the updated user
+        await user.save();
+        
+        // Update Redis cache with the fresh user data
+        await redis.set(String(userId), JSON.stringify(user));
+        
+        res.status(200).json({
+            success: true,
+            user
+        });
+        
+    } catch (error) {
+        console.error('Error in updateUserInfo:', error);
+        return next(new ErrorHandler(error.message || "Internal server error", 500));
+    }
+})
+
+
+// update user password
+
+interface IUpdatePassword{
+    oldPassword: string,
+    newPassword: string
+}
+
+export const updatePassword=catchAsyncError(async(req:Request,res:Response,next:NextFunction)=>{
+    try {
+       
+                const {oldPassword,newPassword}= req.body as IUpdatePassword;
+                console.log(req.body)
+
+        // Validate that both passwords are provided
+        if(!oldPassword || !newPassword){
+            return next(new ErrorHandler("Please provide both old and new password", 400));
+        }
+
+        // Check if user is authenticated
+        if (!req.user || !req.user._id) {
+            return next(new ErrorHandler("User not authenticated", 401));
+        }
+
+        // Find user with password field included
+        const user = await userModel.findById(req.user._id).select("+password");
+
+        // Check if user exists
+        if (!user) {
+            return next(new ErrorHandler("User not found", 404));
+        }
+
+        // Check if user has a password (for social auth users who might not have passwords)
+        if (!user.password || user.password === "undefined") {
+            return next(new ErrorHandler("Password update not allowed for this account type", 400));
+        }
+
+        // Verify old password
+        const isPasswordMatch = await user.comparePassword(oldPassword);
+
+        if (!isPasswordMatch) {
+            return next(new ErrorHandler("Old password is incorrect!", 400));
+        }
+
+        // Update password
+        user.password = newPassword;
+        await user.save();
+
+        // Update Redis cache
+        await redis.set(String(user._id), JSON.stringify(user));
+
+        res.status(200).json({
+            success: true,
+            message: "Password updated successfully",
+           
+        });
+    } catch (error) {
+        console.error('Error in updatePassword:', error);
+        return next(new ErrorHandler(error.message || "Internal server error", 500));        
+    }
+})
