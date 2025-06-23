@@ -7,6 +7,7 @@ import connectDB from "./utils/db";
 import userRouter from "./routes/userRoute";
 import ErrorHandler from "./utils/ErrorHandler";
 import {v2 as cloudinary} from "cloudinary";
+import courseRouter from "./routes/courseRoute";
 const app= express();
 
 dotenv.config();
@@ -37,6 +38,7 @@ app.use(cors({
   
 
 app.use("/api/v1",userRouter);
+app.use("/api/v1",courseRouter);
 
 const PORT = 8080
 app.listen(PORT, ()=>{
