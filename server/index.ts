@@ -8,6 +8,8 @@ import userRouter from "./routes/userRoute";
 import ErrorHandler from "./utils/ErrorHandler";
 import {v2 as cloudinary} from "cloudinary";
 import courseRouter from "./routes/courseRoute";
+import orderModel from "./models/orderModel";
+import orderRouter from "./routes/orderRoute";
 const app= express();
 
 dotenv.config();
@@ -37,8 +39,8 @@ app.use(cors({
   }));
   
 
-app.use("/api/v1",userRouter);
-app.use("/api/v1",courseRouter);
+app.use("/api/v1",userRouter, courseRouter, orderRouter);
+
 
 const PORT = 8080
 app.listen(PORT, ()=>{
