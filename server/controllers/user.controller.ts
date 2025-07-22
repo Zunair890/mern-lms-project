@@ -8,7 +8,7 @@ import path from "path";
 import sendMail from "../utils/sendMail";
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt";
 import { redis } from "../utils/redis";
-import { getAllUsersService, getUserById } from "../services/user.services";
+import { getAllUsersService, getUserById, updateUserRoleService } from "../services/user.services";
 
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -420,3 +420,16 @@ export const getAllUsers= catchAsyncError(async(req:Request,res:Response,next:Ne
      }
 })
 
+// update userRole  --only for admin
+
+export const updateUserRole= catchAsyncError(async(req:Request,res:Response,next:NextFunction)=>{
+    try {
+        const {id,role}= req.body;
+        if (!id || !role) {
+            return next(new ErrorHandler("User id and role are required", 400));
+        }
+         updateUserRoleService(res, id, role);
+    } catch (error) {
+        return next(new ErrorHandler(error.message,400));
+    }
+})
