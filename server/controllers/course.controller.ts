@@ -2,7 +2,7 @@ import {v2 as cloudinary} from "cloudinary";
 import { catchAsyncError } from "../utils/catchAsyncError";
 import { NextFunction, Request, Response } from "express";
 import ErrorHandler from "../utils/ErrorHandler";
-import { createCourse } from "../services/course.services";
+import { createCourse, getAllCoursesService } from "../services/course.services";
 import courseModel from "../models/course.models";
 import { redis } from "../utils/redis";
 import mongoose from "mongoose";
@@ -104,7 +104,7 @@ export const getSingleCourse= catchAsyncError(async(req:Request,res:Response,nex
 
 // get all courses - without purchasing
 
-export const getAllCourses= catchAsyncError(async(req:Request,res:Response,next: NextFunction)=>{
+export const getAllCourse= catchAsyncError(async(req:Request,res:Response,next: NextFunction)=>{
     try {
         const course= await courseModel.find().select("-courseData.videoUrl -courseData.suggestion -courseData.questions -courseData.links");
         res.status(200).json({
@@ -260,5 +260,17 @@ export const addReview= catchAsyncError(async(req:Request,res:Response,next:Next
         })
     } catch (error) {
         return next(new ErrorHandler(error.message,400))
+    }
+})
+
+
+// get all courses - only for admin
+
+export const getAllCourses= catchAsyncError(async(req:Request,res:Response,next:NextFunction)=>{
+    try {
+       getAllCoursesService(res);
+
+    } catch (error) {
+       return next(new ErrorHandler(error.message,400));
     }
 })

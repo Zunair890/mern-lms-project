@@ -8,7 +8,7 @@ import path from "path";
 import sendMail from "../utils/sendMail";
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt";
 import { redis } from "../utils/redis";
-import { getUserById } from "../services/user.services";
+import { getAllUsersService, getUserById } from "../services/user.services";
 
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -407,3 +407,16 @@ export const updateProfilePicture= catchAsyncError(async(req:Request,res:Respons
         return next(new ErrorHandler(error.message,400));
     }
 })
+
+
+// get all courses -- only for admin
+
+export const getAllUsers= catchAsyncError(async(req:Request,res:Response,next:NextFunction)=>{
+     try {
+        getAllUsersService(res);
+
+     } catch (error) {
+        return next(new ErrorHandler(error.message,400));
+     }
+})
+
