@@ -7,7 +7,6 @@ import { catchAsyncError } from "../utils/catchAsyncError";
 import path from "path";
 import sendMail from "../utils/sendMail";
 import { accessTokenOptions, refreshTokenOptions, sendToken } from "../utils/jwt";
-import { redis } from "../utils/redis";
 import { getAllUsersService, getUserById, updateUserRoleService } from "../services/user.services";
 
 import { v2 as cloudinary } from 'cloudinary';
@@ -139,10 +138,8 @@ export const logoutUser = catchAsyncError(async (req: Request, res: Response, ne
   try {
     res.cookie('access_token', '', { maxAge: 1 });
     res.cookie('refresh_token', '', { maxAge: 1 });
-    const userId = req.user?._id;
-    if (userId) {
-      await redis.del(String(userId));
-    }
+          const userId = req.user?._id;
+      // Logout successful
     res.status(200).json({ status: 'success', message: 'Logout successfully' });
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
@@ -163,11 +160,11 @@ export const updateAccessToken= catchAsyncError(async(req:Request,res: Response,
 
         }
 
-        const session= await redis.get(decoded.id as string);
+        const session= await userModel.findById(decoded.id as string); // Changed to userModel
         if(!session){
             return next(new ErrorHandler(message,400))
         }
-        const user= JSON.parse(session);
+        const user= session;
         const accessToken= jwt.sign({id: user._id},process.env.ACCESS_TOKEN as string,{
             expiresIn:"5m"
         });
@@ -279,9 +276,6 @@ export const updateUserInfo= catchAsyncError(async(req:Request,res:Response,next
         // Save the updated user
         await user.save();
         
-        // Update Redis cache with the fresh user data
-        await redis.set(String(userId), JSON.stringify(user));
-        
         res.status(200).json({
             success: true,
             user
@@ -341,9 +335,6 @@ export const updatePassword=catchAsyncError(async(req:Request,res:Response,next:
         user.password = newPassword;
         await user.save();
 
-        // Update Redis cache
-        await redis.set(String(user._id), JSON.stringify(user));
-
         res.status(200).json({
             success: true,
             message: "Password updated successfully",
@@ -398,7 +389,6 @@ export const updateProfilePicture= catchAsyncError(async(req:Request,res:Respons
         }
 
         await user?.save();
-        await redis.set(userId as string, JSON.stringify(user));
         res.status(200).json({
             success: true,
             user
@@ -448,7 +438,6 @@ export const deleteUser= catchAsyncError(async(req:Request,res:Response,next:Nex
         }
 
         await user.deleteOne({id});
-        await redis.del(id);
 
         res.status(200).json({
             success: true,

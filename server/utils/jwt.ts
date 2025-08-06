@@ -1,7 +1,5 @@
 import dotenv from "dotenv"
 import { IUser } from "../models/user.models"
-import { redis } from "./redis"
-
 
 interface ITokenOption {
     expires: Date;
@@ -33,9 +31,6 @@ export const refreshTokenOptions: ITokenOption = {
   export const sendToken = (user: IUser, status: number, res: any) => {
     const accessToken = user.SignAccessToken();
     const refreshToken = user.SignRefreshToken();
-
-    // upload session to redis
-    redis.set(String(user._id), JSON.stringify(user));
 
     // only set secure to true in production
 

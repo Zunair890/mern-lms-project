@@ -1,15 +1,8 @@
-import {Redis} from "ioredis";
-import dotenv from "dotenv";
-dotenv.config();
+// Redis has been removed from this project
+// All Redis operations have been replaced with direct database operations
 
-const redisClient= ()=>{
-   if(process.env.REDIS_URL){
-    console.log("Redis connected!");
-    return process.env.REDIS_URL
-   }
-
-   throw new Error("Redis connection failed!");
-
-}
-
-export const redis= new Redis(redisClient());
+export const redis = {
+  get: async () => null,
+  set: async () => null,
+  del: async () => null
+};

@@ -12,6 +12,7 @@ import orderModel from "./models/orderModel";
 import orderRouter from "./routes/orderRoute";
 import notificationRoute from "./routes/notificationRoute";
 import analyticsRouter from "./routes/analytics.route";
+import layoutRouter from "./routes/layout.route";
 const app= express();
 
 dotenv.config();
@@ -41,7 +42,7 @@ app.use(cors({
   }));
   
 
-app.use("/api/v1",userRouter, courseRouter, orderRouter,notificationRoute,analyticsRouter);
+app.use("/api/v1",userRouter, courseRouter, orderRouter,notificationRoute,analyticsRouter,layoutRouter);
 
 
 const PORT = 8080

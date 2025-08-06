@@ -4,7 +4,6 @@ import { NextFunction, Request, Response } from "express";
 import ErrorHandler from "../utils/ErrorHandler";
 import { createCourse, getAllCoursesService } from "../services/course.services";
 import courseModel from "../models/course.models";
-import { redis } from "../utils/redis";
 import mongoose from "mongoose";
 
 
@@ -73,27 +72,12 @@ export const getSingleCourse= catchAsyncError(async(req:Request,res:Response,nex
     try {
          
         const courseId= req.params.id;
-        const isCatcheExist= await redis.get(courseId);
-        console.log("hitting redis")
-        if(isCatcheExist){
-            const course= JSON.parse(isCatcheExist);
+        const course = await courseModel.findById(req.params.id).select("-courseData.videoUrl -courseData.suggestion -courseData.questions -courseData.links");
+            
             res.status(200).json({
-                success: true,
-                course
-            })
-        }
-
-        else{
- 
-            console.log("courseId", courseId);
-            const course = await courseModel.findById(req.params.id).select("-courseData.videoUrl -courseData.suggestion -courseData.questions -courseData.links");
-             console.log("hitting mongodb")
-            await redis.set(courseId,JSON.parse(isCatcheExist));
-           res.status(200).json({
             success: true,
             course
         })
-        }
 
 
         
@@ -289,7 +273,6 @@ export const deleteCourse= catchAsyncError(async(req:Request,res:Response,next:N
         }
 
         await course.deleteOne({id});
-        await redis.del(id);
 
         res.status(200).json({
             success: true,
